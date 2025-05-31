@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Publicar HTML en GitHub Pages</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #121212;
+      color: #eee;
+      padding: 30px 20px;
+      max-width: 600px;
+      margin: auto;
+      box-sizing: border-box;
+    }
+    h2 {
+      color: #1DB954;
+      text-align: center;
+      margin-bottom: 25px;
+    }
+    label {
+      font-weight: 600;
+      display: block;
+      margin-top: 15px;
+      margin-bottom: 5px;
+      color: #bbb;
+    }
+    input, textarea {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 6px;
+      font-size: 1rem;
+      background: #222;
+      color: #eee;
+      resize: vertical;
+      box-sizing: border-box;
+    }
+    input::placeholder,
+    textarea::placeholder {
+      color: #666;
+    }
+    button, #copyBtn {
+      margin-top: 20px;
+      padding: 14px;
+      font-size: 1.1rem;
+      border: none;
+      border-radius: 8px;
+      background-color: #1DB954;
+      color: #121212;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    button:hover, #copyBtn:hover {
+      background-color: #17a344;
+    }
+    #resultado {
+      margin-top: 30px;
+      font-weight: 700;
+      font-size: 1.1rem;
+      text-align: center;
+      min-height: 60px;
+      word-break: break-word;
+      position: relative;
+    }
+    #resultado a {
+      color: #1DB954;
+      text-decoration: none;
+      font-weight: 700;
+    }
+    #resultado a:hover {
+      text-decoration: underline;
+    }
+    #copyBtn {
+      margin-top: 10px;
+      display: none;
+    }
+    @media (max-width: 480px) {
+      body {
+        padding: 20px 10px;
+      }
+      button, #copyBtn {
+        font-size: 1rem;
+        padding: 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <h2>🚀 Publicar HTML en GitHub Pages</h2>
+
+  <!-- Usuario oculto fijo -->
+  <input type="hidden" id="usuario" value="SeriesLz" />
+
+  <label>Nombre del nuevo repositorio:</label>
+  <input type="text" id="repo" placeholder="Ej: Los-Caballeros" />
+
+  <!-- Archivo fijo index.html oculto -->
+  <input type="hidden" id="filename" value="index.html" />
+
+  <label>Código HTML:</label>
+  <textarea id="contenido" rows="10" placeholder="&lt;!DOCTYPE html&gt;..."></textarea>
+
+  <button onclick="publicar()">📤 Publicar</button>
+
+  <div id="resultado"></div>
+  <button id="copyBtn" onclick="copiarEnlace()">📋 Copiar enlace</button>
+
+  <script>
+    
+    const TOKEN_POR_DEFECTO = "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";
+
+    const resultado = document.getElementById('resultado');
+    const copyBtn = document.getElementById('copyBtn');
+    let enlaceGenerado = '';
+
+    async function publicar() {
+      const usuario = document.getElementById("usuario").value.trim();
+      const token = TOKEN_POR_DEFECTO;
+
+      const repo = document.getElementById("repo").value.trim();
+      const filename = document.getElementById("filename").value.trim();
+      const contenido = document.getElementById("contenido").value;
+
+      if (!token || !repo || !filename || !contenido) {
+        resultado.textContent = "❌ Por favor, llena todos los campos y asegúrate que el token esté configurado en el código.";
+        copyBtn.style.display = 'none';
+        return;
+      }
+
+      resultado.textContent = "⏳ Creando repositorio...";
+      copyBtn.style.display = 'none';
+
+      const crearRepo = await fetch("https://api.github.com/user/repos", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          name: repo,
+          description: "Publicado con mi panel de películas 💖",
+          auto_init: true,
+          private: false
+        })
+      });
+
+      const repoResp = await crearRepo.json();
+
+      if (!crearRepo.ok) {
+        resultado.textContent = "❌ Error creando el repositorio: " + repoResp.message;
+        return;
+      }
+
+      // Cuenta regresiva 10 segundos
+      let tiempo = 10;
+      resultado.textContent = `✅ Repositorio creado. Esperando ${tiempo} segundos...`;
+
+      const espera = () => new Promise(resolve => {
+        const intervalo = setInterval(() => {
+          tiempo--;
+          if (tiempo > 0) {
+            resultado.textContent = `✅ Repositorio creado. Esperando ${tiempo} segundos...`;
+          } else {
+            clearInterval(intervalo);
+            resolve();
+          }
+        }, 1000);
+      });
+
+      await espera();
+
+      const contenidoCodificado = btoa(unescape(encodeURIComponent(contenido)));
+
+      resultado.textContent = "⬆️ Subiendo archivo...";
+
+      const subirArchivo = await fetch(`https://api.github.com/repos/${usuario}/${repo}/contents/${filename}`, {
+        method: "PUT",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          message: `Subido archivo ${filename}`,
+          content: contenidoCodificado,
+          branch: "main"
+        })
+      });
+
+      const subirResp = await subirArchivo.json();
+
+      if (!subirArchivo.ok) {
+        resultado.textContent = "❌ Error subiendo el archivo: " + subirResp.message;
+        return;
+      }
+
+      resultado.textContent = "🌐 Activando GitHub Pages...";
+
+      const activarPages = await fetch(`https://api.github.com/repos/${usuario}/${repo}/pages`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          source: {
+            branch: "main",
+            path: "/"
+          }
+        })
+      });
+
+      if (!activarPages.ok) {
+        const pagesResp = await activarPages.json();
+        resultado.textContent = "❌ Error al activar GitHub Pages: " + pagesResp.message;
+        return;
+      }
+
+      enlaceGenerado = `https://${usuario}.github.io/${repo}/index.html`;
+      resultado.innerHTML = `
+        ✅ ¡Listo! Tu página se activará en unos segundos:<br><br>
+        🌐 <a href="${enlaceGenerado}" target="_blank">${enlaceGenerado}</a>
+      `;
+      copyBtn.style.display = 'block';
+      copyBtn.textContent = '📋 Copiar enlace';
+    }
+
+    function copiarEnlace() {
+      if (!enlaceGenerado) return;
+      navigator.clipboard.writeText(enlaceGenerado).then(() => {
+        copyBtn.textContent = 'Copiado';
+        setTimeout(() => {
+          copyBtn.style.display = 'none';
+        }, 2000);
+      });
+    }
+  </script>
+
+</body>
+</html>
